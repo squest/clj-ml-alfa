@@ -1,6 +1,7 @@
 (ns mljalfa.core
-  (:use [incanter.charts :only [xy-plot add-points]]
-        [incanter.core :only [view]])
+  (:use [incanter.charts :only [xy-plot add-points scatter-plot add-lines]]
+        [incanter.core :only [view]]
+        [incanter.stats :only [linear-model]])
   (:require
     [clatrix.core :as cl]
     [clojure.core.matrix :refer :all]
@@ -89,6 +90,11 @@
     (assoc problem :hidden-values
                    (M/* -1 (inverse l11) l12 observed-values))))
 
+(defn plot-rand-sample
+  "Plotting random samples"
+  [a b c]
+  (plot-points (solve (problem a b c))))
+
 (defn mat=
   "Equality check for matrix"
   [A B]
@@ -99,8 +105,92 @@
   "Matrix addition for two or more matrix"
   ([A B] (mapv #(mapv + %1 %2) A B))
   ([A B & more]
-    (let [mat (concat [A B] more)]
-      (reduce mat+ mat))))
+   (let [mat (concat [A B] more)]
+     (reduce mat+ mat))))
+
+(def X [8.401 14.475 13.396 12.127 5.044
+        8.339 15.692 17.108 9.253 12.029])
+
+(def Y [-1.57 2.32 0.424 0.814 -2.3
+        0.01 1.954 2.296 -0.635 0.328])
+
+(def linear-samp-scatter
+  (scatter-plot X Y))
+
+(defn plot-scatter []
+  (view linear-samp-scatter))
+
+(def samp-linear
+  (linear-model Y X))
+
+(defn plot-model []
+  (view (add-lines samp-linear
+                   X (:fitted linear-samp-scatter))))
+
+(plot-model)
+
+(plot-scatter)
+
+
+
+(defn make-sea-bass []
+  ;; sea bass are mostly long and light in color
+  #{:sea-bass
+    (if (< (rand) 0.2) :fat :thin)
+    (if (< (rand) 0.7) :long :short)
+    (if (< (rand) 0.8) :light :dark)})
+
+(defn make-salmon []
+  ;; salmon are mostly fat and dark
+  #{:salmon
+    (if (< (rand) 0.8) :fat :thin)
+    (if (< (rand) 0.5) :long :short)
+    (if (< (rand) 0.3) :light :dark)})
+
+(defn make-sample-fish []
+  (if (< (rand) 0.3) (make-sea-bass) (make-salmon)))
+
+(def fish-training-data
+  (for [i (range 10000)] (make-sample-fish)))
+
+(defn probability
+  "Calculates the probability of a specific category
+   given some attributes, depending on the training data."
+  [attribute & {:keys
+                    [category prior-positive prior-negative data]
+                :or {category nil
+                     data     fish-training-data}}]
+  (let [by-category (if category
+                      (filter category data)
+                      data)
+        positive (count (filter attribute by-category))
+        negative (- (count by-category) positive)
+        total (+ positive negative)]
+    (/ positive total)))
+
+(defn evidence-of-salmon [& attrs]
+  (let [attr-probs (map #(probability % :category :salmon) attrs)
+        class-and-attr-prob (conj attr-probs
+                                  (probability :salmon))]
+    (float (apply * class-and-attr-prob))))
+
+(defn evidence-of-sea-bass [& attrs]
+  (let [attr-probs (map #(probability % :category :sea-bass) attrs)
+        class-and-attr-prob (conj attr-probs
+                                  (probability :sea-bass))]
+    (float (apply * class-and-attr-prob))))
+
+
+(defn gen-probs
+  [category & attrs]
+  (let [attr-probs (map #(probability % :category category) attrs)
+        class-and-attr-prob (conj attr-probs
+                                  (probability category))]
+    (float (apply * class-and-attr-prob))))
+
+
+
+
 
 
 
