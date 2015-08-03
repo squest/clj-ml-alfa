@@ -7,5 +7,6 @@
                  [net.mikera/core.matrix "0.36.1"]
                  [clatrix "0.5.0"]
                  [expectations "2.1.2"]
-                 [incanter "1.9.0"]]
+                 [incanter "1.9.0"]
+                 [http-kit "2.1.18"]]
   :plugins [[lein-expectations "0.0.8"]])
