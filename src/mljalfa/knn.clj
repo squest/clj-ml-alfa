@@ -14,20 +14,17 @@
                       (map int))
         fweights (->> (stat/sample-normal n :mean 46 :sd 4)
                       (map int))
+        fhairs (->> (stat/sample-normal n :mean 30 :sd 4)
+                    (map int))
         mheights (->> (stat/sample-normal n :mean 165 :sd 6)
                       (map int))
         mweights (->> (stat/sample-normal n :mean 63 :sd 6)
-                      (map int))]
-    (concat (->> (map vector (shuffle mheights) (shuffle mweights))
+                      (map int))
+        mhairs (->> (stat/sample-normal n :mean 15 :sd 3))]
+    (concat (->> (map vector (shuffle mheights) (shuffle mweights) (shuffle mhairs))
                  (map #(hash-map :class :male :datum %)))
-            (->> (map vector (shuffle fheights) (shuffle fweights))
+            (->> (map vector (shuffle fheights) (shuffle fweights) (shuffle fhairs))
                  (map #(hash-map :class :female :datum %))))))
-
-(def training-data
-  (gen-people 100))
-
-(def real-data
-  (gen-people 1000))
 
 (defn classify
   "Classify one data xi"
@@ -45,10 +42,10 @@
 
 (defn classify-all
   "Classify all data"
-  [real-data train-data k]
-  (let [result (map #(classify % train-data k) real-data)
+  [reals-data train-data k]
+  (let [result (map #(classify % train-data k) reals-data)
         success (count (filter #(= (:class %) (:result %)) result))
-        error (- (count real-data) success)]
+        error (- (count reals-data) success)]
     {:data result
      :summary {:success success :error error}} ))
 
