@@ -8,5 +8,6 @@
                  [clatrix "0.5.0"]
                  [expectations "2.1.2"]
                  [incanter "1.9.0"]
-                 [http-kit "2.1.18"]]
-  :plugins [[lein-expectations "0.0.8"]])
+                 [http-kit "2.1.19"]]
+  :plugins [[lein-expectations "0.0.8"]
+            [lein-gorilla "0.3.4"]])

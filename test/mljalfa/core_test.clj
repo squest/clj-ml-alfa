@@ -1,6 +1,7 @@
 (ns mljalfa.core-test
   (:require [mljalfa.core :refer :all]
-            [mljalfa.macros :refer :all]))
+            [mljalfa.macros :refer :all]
+            [mljalfa.core :refer [sum-sieve]]))
 
 (def-test
   "Sieve eratos summation"
