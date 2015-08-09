@@ -1,6 +1,8 @@
 (ns mljalfa.knn
   (:require
-    [incanter.stats :as stat]))
+    [incanter.stats :as stat]
+    [incanter.charts :as chart]
+    [incanter.core :refer [view]]))
 
 (defn sqr [x] (* x x))
 
@@ -10,17 +12,12 @@
 
 (defn gen-people
   [^long n]
-  (let [fheights (->> (stat/sample-normal n :mean 155 :sd 6)
-                      (map int))
-        fweights (->> (stat/sample-normal n :mean 46 :sd 4)
-                      (map int))
-        fhairs (->> (stat/sample-normal n :mean 30 :sd 4)
-                    (map int))
-        mheights (->> (stat/sample-normal n :mean 165 :sd 6)
-                      (map int))
-        mweights (->> (stat/sample-normal n :mean 63 :sd 6)
-                      (map int))
-        mhairs (->> (stat/sample-normal n :mean 15 :sd 3))]
+  (let [fheights (stat/sample-normal n :mean 155 :sd 6)
+        fweights (stat/sample-normal n :mean 46 :sd 4)
+        fhairs (stat/sample-normal n :mean 30 :sd 4)
+        mheights (stat/sample-normal n :mean 165 :sd 6)
+        mweights (stat/sample-normal n :mean 63 :sd 6)
+        mhairs (stat/sample-normal n :mean 20 :sd 4)]
     (concat (->> (map vector (shuffle mheights) (shuffle mweights) (shuffle mhairs))
                  (map #(hash-map :class :male :datum %)))
             (->> (map vector (shuffle fheights) (shuffle fweights) (shuffle fhairs))
@@ -46,6 +43,6 @@
   (let [result (map #(classify % train-data k) reals-data)
         success (count (filter #(= (:class %) (:result %)) result))
         error (- (count reals-data) success)]
-    {:data result
-     :summary {:success success :error error}} ))
+    {:data    result
+     :summary {:success success :error error}}))
 
