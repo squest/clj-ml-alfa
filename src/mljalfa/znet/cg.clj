@@ -3,7 +3,8 @@
     [couchbase-clj.client :as cc]
     [clojure.data.json :as json]
     [clojure.string :as cs]
-    [clj-time.core :as t]))
+    [clj-time.core :as t]
+    [clojure.set :as cset]))
 
 (def dir "/Users/questmac/public/db/click-logs/")
 
@@ -87,6 +88,27 @@
          (map #(vector (key %)
                        (count (val %))))
          (into {}))))
+
+(defn user->member
+  [fname]
+  (let [raw (read-string (slurp "resources/selected.edn"))
+        mapping (read-string (slurp "resources/lala.edn"))
+        sraw (set (map first (map keys raw)))]
+    (loop [[[k v] & xs] (seq mapping) res {}]
+      (if k
+        (recur xs (merge res {(first (keep sraw k)) v}))
+        (do (spit (str "resources/" fname ".edn") res)
+            (take 20 res))))))
+
+(defn member-base
+  [fname]
+  (let [raw (read-string (slurp "resources/selected.edn"))
+        mapping (read-string (slurp "resources/convert.edn"))]
+    (loop [[x & xs] raw res []]
+      (if x
+        (recur xs (conj res {(mapping (first (keys x))) (first (vals x))}))
+        (do (spit (str "resources/" fname ".edn") res)
+            (take 20 res))))))
 
 
 
