@@ -4,8 +4,6 @@
     [incanter.charts :as chart]
     [incanter.core :refer [view]]))
 
-
-
 (defn sqr [x] (* x x))
 
 (defn distance
