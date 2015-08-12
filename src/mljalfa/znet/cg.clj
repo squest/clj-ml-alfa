@@ -10,11 +10,13 @@
 (def dir-kopet "/Users/questmac/public/db/resources/")
 
 (defn next-day
+  "return the vector of next-day in jdate format and next-day in string format"
   [jdate]
   (let [nday (t/plus jdate (t/days 1))]
     [nday (cs/replace (str nday) #"-" "")]))
 
 (defn open-log
+  "open log files"
   [fname]
   (->> (str dir fname)
        (slurp)
@@ -23,6 +25,7 @@
        (pmap json/read-json)))
 
 (defn open-log-kopet
+  "open log files"
   [fname]
   (->> (str dir-kopet fname)
        (slurp)
@@ -35,6 +38,10 @@
   (->> (str "resources/relevant/" fname ".edn")
        slurp read-string))
 
+(defn open-raw
+  [fname]
+  (->> (str "resources/raws/" fname ".edn") slurp read-string))
+
 (defonce cdb (-> {:bucket "znetroyalty"
                   :uris   ["http://127.0.0.1:8091/pools"]}
                  (cc/create-client)))
@@ -44,6 +51,7 @@
   {:key (str naon "-" id)})
 
 (defn cbquery
+  "Querying couchbase"
   ([qgroup view]
    (->> (cc/query cdb qgroup view {:include-docs true})
         (map cc/view-doc-json)))
@@ -186,7 +194,7 @@
 (defn update-cg-in-db
   "Update the content-group data in the db"
   []
-  (loop [[v & vs] (->> "resources/updated-cg.edn" slurp read-string)]
+  (loop [[v & vs] (open-raw "updated-cg")]
     (when v
       (let [id (:id v)]
         (if-let [from-db (cc/get-json cdb (:key (cbkey "content-group" id)))]
@@ -235,10 +243,11 @@
             (take 20 res))))))
 
 (defn agglomerate-logs
+  "Agglomerating logs from two log files"
   [fname]
   (let [raw1 (reduce merge (open-file "kopet-data-bagus"))
         raw2 (reduce merge (open-file "avi-data-member"))
-        result (merge-with #(merge-with + %1 %2) raw1 raw2)]
+        result (merge-with (partial merge-with +) raw1 raw2)]
     (spit (str "resources/relevant/" fname ".edn") result)
     (take 50 result)))
 
