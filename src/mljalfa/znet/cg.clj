@@ -7,6 +7,7 @@
     [clojure.set :as cset]))
 
 (def dir "/Users/questmac/public/db/click-logs/")
+(def dir-kopet "/Users/questmac/public/db/resources/")
 
 (defn next-day
   [jdate]
@@ -20,6 +21,19 @@
        (cs/split-lines)
        (filter #(pos? (count %)))
        (pmap json/read-json)))
+
+(defn open-log-kopet
+  [fname]
+  (->> (str dir-kopet fname)
+       (slurp)
+       (cs/split-lines)
+       (filter #(pos? (count %)))
+       (pmap json/read-json)))
+
+(defn open-file
+  [fname]
+  (->> (str "resources/relevant/" fname ".edn")
+       slurp read-string))
 
 (defonce cdb (-> {:bucket "znetroyalty"
                   :uris   ["http://127.0.0.1:8091/pools"]}
@@ -49,6 +63,21 @@
                          (if x
                            (recur xs (->> #(merge-with + % {(:content-id x) 1})
                                           (update-in resi [(:user-uuid x)])))
+                           resi)))]
+        (do (println strday)
+            (recur (next-day sday) (merge-with #(merge-with + %1 %2) res resi)))))))
+
+(defn store-user-log-kopet
+  [start-date end-date]
+  (loop [[sday strday] (next-day start-date) res {}]
+    (if (= strday end-date)
+      (do (spit "resources/kopet-data.edn" res)
+          (->> (take 100 res)
+               (into {})))
+      (let [resi (time (loop [[x & xs] (open-log-kopet (str "click-log-" strday)) resi {}]
+                         (if x
+                           (recur xs (->> #(merge-with + % {(first (:content-id x)) 1})
+                                          (update-in resi [(:user-id x)])))
                            resi)))]
         (do (println strday)
             (recur (next-day sday) (merge-with #(merge-with + %1 %2) res resi)))))))
@@ -91,12 +120,14 @@
 
 (defn user->member
   [fname]
-  (let [raw (read-string (slurp "resources/selected.edn"))
+  (let [raw (read-string (slurp "resources/avi-data.edn"))
         mapping (read-string (slurp "resources/lala.edn"))
-        sraw (set (map first (map keys raw)))]
-    (loop [[[k v] & xs] (seq mapping) res {}]
+        sraw (set (keys raw))]
+    (loop [[[k v] & xs] (seq mapping) res {} i 0]
       (if k
-        (recur xs (merge res {(first (keep sraw k)) v}))
+        (do (when (== 0 (rem i 10000))
+              (println i))
+            (recur xs (merge res {(first (keep sraw k)) v}) (inc i)))
         (do (spit (str "resources/" fname ".edn") res)
             (take 20 res))))))
 
@@ -162,7 +193,7 @@
           (cc/set-json cdb (keyword (:key (cbkey "content-group" id)))
                        (merge from-db v))
           (cc/set-json cdb (keyword (:key (cbkey "content-group" id)))
-                       (merge v {:ctype "content-group"
+                       (merge v {:ctype    "content-group"
                                  :contents []}))))
       (println (:id v))
       (recur vs))))
@@ -177,11 +208,60 @@
             (cc/get-json cdb (keyword (:key (cbkey "content" id)))
                          (merge from-db v))
             (cc/get-json cdb (keyword (:key (cbkey "content" id)))
-                         (merge v {:ctype "content"
+                         (merge v {:ctype  "content"
                                    :tutors []
-                                   :hits {}}))))
+                                   :hits   {}}))))
         (println (:id v))
         (recur vs)))))
+
+(defn convert-avi-data
+  [fname]
+  (let [convert (-> "resources/converts.edn" slurp read-string)]
+    (->> "resources/avi-data.edn"
+         slurp read-string
+         (keep #(if-let [k (convert (key %))]
+                 {k (val %)}))
+         (into [])
+         (spit (str "resources/" fname ".edn")))))
+
+(defn convert-kopet-data
+  []
+  (let [raw (open-file "kopet-data")]
+    (loop [[[k v] & vs] (seq raw) res []]
+      (if k
+        (recur vs (conj res {k (->> (map #(vector (str (key %)) (val %)) v)
+                                    (into {}))}))
+        (do (spit "resources/relevant/kopet-data-bagus.edn" res)
+            (take 20 res))))))
+
+(defn agglomerate-logs
+  [fname]
+  (let [raw1 (reduce merge (open-file "kopet-data-bagus"))
+        raw2 (reduce merge (open-file "avi-data-member"))
+        result (merge-with #(merge-with + %1 %2) raw1 raw2)]
+    (spit (str "resources/relevant/" fname ".edn") result)
+    (take 50 result)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
