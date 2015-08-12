@@ -77,7 +77,7 @@
         (do (spit (str "resources/" fname ".edn") res)
             (take 50 res))))))
 
-(defn classify
+(defn classify-based-on-video-access
   [fname]
   (let [raw (->> (slurp (str "resources/" fname ".edn"))
                  read-string)]
@@ -110,7 +110,81 @@
         (do (spit (str "resources/" fname ".edn") res)
             (take 20 res))))))
 
-(defn what?)
+(defn cg-sieve
+  "assigning parents to cg"
+  [fname]
+  (let [refs (into-array (vec (repeat 2000 [])))
+        raw (->> "resources/content-group-tree-path.edn"
+                 slurp read-string)]
+    (loop [[{:keys [ancestor descendant length]} & vs] raw]
+      (if ancestor
+        (do (->> {:id ancestor :level length}
+                 (conj (aget refs descendant))
+                 (aset refs descendant))
+            (recur vs))
+        (let [content (->> (into [] refs)
+                           (map-indexed #(hash-map :id %1
+                                                   :parents %2))
+                           (remove #(empty? (:parents %)))
+                           (into []))]
+          (do (spit (str "resources/" fname ".edn") content)
+              (take 20 content)))))))
+
+(def cg-from-file (->> "resources/content-group.edn"
+                       slurp read-string))
+
+(defn update-cg
+  "Update content-group from file"
+  []
+  (let [cgs (into-array (vec (repeat 2000 {})))]
+    (do (loop [[v & vs] cg-from-file]
+          (when v
+            (aset cgs (:id v) v)
+            (recur vs)))
+        (loop [[v & vs] (->> "resources/cg-parents.edn"
+                             slurp read-string)]
+          (when v
+            (aset cgs (:id v) (merge (aget cgs (:id v)) v))
+            (recur vs)))
+        (let [content (->> (into [] cgs)
+                           (remove empty?)
+                           (into []))]
+          (spit "resources/updated-cg.edn" content)
+          (take 20 content)))))
+
+(defn update-cg-in-db
+  "Update the content-group data in the db"
+  []
+  (loop [[v & vs] (->> "resources/updated-cg.edn" slurp read-string)]
+    (when v
+      (let [id (:id v)]
+        (if-let [from-db (cc/get-json cdb (:key (cbkey "content-group" id)))]
+          (cc/set-json cdb (keyword (:key (cbkey "content-group" id)))
+                       (merge from-db v))
+          (cc/set-json cdb (keyword (:key (cbkey "content-group" id)))
+                       (merge v {:ctype "content-group"
+                                 :contents []}))))
+      (println (:id v))
+      (recur vs))))
+
+(defn update-content-in-db
+  []
+  (let [raw (->> "resources/content.edn" slurp read-string)]
+    (loop [[v & vs] raw]
+      (when v
+        (let [id (:id v)]
+          (if-let [from-db (cc/get-json cdb (:key (cbkey "content" id)))]
+            (cc/get-json cdb (keyword (:key (cbkey "content" id)))
+                         (merge from-db v))
+            (cc/get-json cdb (keyword (:key (cbkey "content" id)))
+                         (merge v {:ctype "content"
+                                   :tutors []
+                                   :hits {}}))))
+        (println (:id v))
+        (recur vs)))))
+
+
+
 
 
 
