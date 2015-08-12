@@ -46,11 +46,11 @@
         (do (spit (fdir fname) res)
             (take 20 res))))))
 
-(defn get-top-parent
+(defn get-parent-level1
   [cg-id]
   (->> (cc/get-json cdb (str "content-group-" cg-id))
        :parents
-       (filter #(#{1 2 3} (:id %)))
+       (filter #(#{41 42 43 44 45 639 640} (:id %)))
        first :id))
 
 (defn convert-to-level1
@@ -62,6 +62,25 @@
               new-val (loop [[[kk vv] & vvs] values res {}]
                         (if kk
                           (if-let [pom (get-top-parent kk)]
+                            (recur vvs (->> {pom vv}
+                                            (merge-with + res)))
+                            (recur vvs (merge-with + res {nil vv})))
+                          res))]
+          (println k)
+          (recur vs (assoc! res k new-val)))
+        (let [resi (persistent! res)]
+          (spit (fdir fname) resi)
+          (take 10 resi))))))
+
+(defn convert-to-level2
+  [fname]
+  (let [raw (open-file "users-sma-log")]
+    (loop [[[k v] & vs] (seq raw) res (transient {})]
+      (if k
+        (let [values (map #(vector (key %) (val %)) v)
+              new-val (loop [[[kk vv] & vvs] values res {}]
+                        (if kk
+                          (if-let [pom (get-parent-level1 kk)]
                             (recur vvs (->> {pom vv}
                                             (merge-with + res)))
                             (recur vvs (merge-with + res {nil vv})))

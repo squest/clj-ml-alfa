@@ -12,11 +12,24 @@
 
 ;; @@
 (ns mljalfa.notebook.two
-  (:require [gorilla-plot.core :refer :all]
-            [mljalfa.znet.classify :refer :all]))
+  (:require [gorilla-plot.core :refer :all]))
 ;; @@
 ;; =>
 ;;; {"type":"html","content":"<span class='clj-nil'>nil</span>","value":"nil"}
+;; <=
+
+;; @@
+(defn fdir [fname] (str "resources/relevant/" fname ".edn"))
+;; @@
+;; =>
+;;; {"type":"html","content":"<span class='clj-var'>#&#x27;mljalfa.notebook.two/fdir</span>","value":"#'mljalfa.notebook.two/fdir"}
+;; <=
+
+;; @@
+(defn open [fname] (->> (fdir fname) slurp read-string))
+;; @@
+;; =>
+;;; {"type":"html","content":"<span class='clj-var'>#&#x27;mljalfa.notebook.two/open</span>","value":"#'mljalfa.notebook.two/open"}
 ;; <=
 
 ;; @@

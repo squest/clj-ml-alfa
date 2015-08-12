@@ -1,13 +1,15 @@
 (ns mljalfa.znet.classify
   (:require
     [clojure.string :as cs]
-    [clojure.set :as cset]))
+    [clojure.set :as cset]
+    [mljalfa.znet.couch :refer [cbkey cdb cbquery]]
+    [couchbase-clj.client :as cc]))
 
 (def dir "resources/relevant/")
 
 (defn fdir [fname] (str dir fname ".edn"))
 
-(defn open-file
+(defn open
   [fname]
   (->> (fdir fname) slurp read-string))
 
@@ -21,6 +23,7 @@
 (defn ndim-average
   [xs]
   (let [len (count (first xs))
+        length (count xs)
         res (int-array len 0)]
     (loop [[x & xxs] xs]
       (when x
@@ -28,7 +31,10 @@
           (aset res i (+ (aget res i) (nth x i))))
         (recur xxs)))
     (->> (into [] res)
-         (mapv #(int (/ % 1.0 len))))))
+         (mapv #(int (/ % 1.0 length))))))
+
+;; users sma 18331
+;; sma x 2331, xi 2215, xii + alumni => 12410
 
 (defn kmeans
   "k-means clustering with max-iter"
@@ -40,13 +46,25 @@
         fdist (fn [p] (fn [p1] (distance (p1 :datum) (p :datum))))]
     (loop [i 0 data (mapv #(hash-map :datum %) xs) start starts]
       (if (== i max-iter)
-        (spit (fdir "cluster-1") data)
-        (let [next-data (mapv (fn [x]
-                               (let [mini (min-key (fdist x) start)]
-                                 (assoc x :class (:class mini)))) data)
+        data
+        (let [next-data (mapv #(let [mini (apply min-key (fdist %) start)]
+                                (assoc % :class (:class mini))) data)
               nstart (->> (group-by :class next-data)
                           (map #(hash-map :class (key %)
                                           :datum (ndim-average (map :datum (val %))))))]
           (do (println i)
               (println nstart)
               (recur (inc i) next-data nstart)))))))
+
+
+
+
+
+
+
+
+
+
+
+
+
