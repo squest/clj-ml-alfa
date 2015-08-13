@@ -33,6 +33,16 @@
     (->> (into [] res)
          (mapv #(int (/ % 1.0 length))))))
 
+(defn ndim-median
+  [xs]
+  (let [len (count (first xs))]
+    (vec (for [i (range len)]
+           (key (apply max-key val (frequencies (map #(nth % i) xs))))))))
+
+(defn median
+  [xs]
+  (vec (key (apply max-key val (frequencies xs)))))
+
 ;; users sma 18331
 ;; sma x 2331, xi 2215, xii + alumni => 12410
 
@@ -44,8 +54,8 @@
         starts (->> (map #(nth xs %) takes)
                     (map #(hash-map :datum %2 :class %1) (range)))
         fdist (fn [p] (fn [p1] (distance (p1 :datum) (p :datum))))]
-    (loop [i 0 data (mapv #(hash-map :datum %) xs) start starts]
-      (if (== i max-iter)
+    (loop [i 0 data (mapv #(hash-map :datum %) xs) start starts restart []]
+      (if (or (== i max-iter) (= start restart))
         data
         (let [next-data (mapv #(let [mini (apply min-key (fdist %) start)]
                                 (assoc % :class (:class mini))) data)
@@ -54,7 +64,44 @@
                                           :datum (ndim-average (map :datum (val %))))))]
           (do (println i)
               (println nstart)
-              (recur (inc i) next-data nstart)))))))
+              (recur (inc i) next-data nstart start)))))))
+
+(defn kmedian
+  "k-median clustering with max-iter"
+  [xs k max-iter]
+  (let [len (count xs)
+        takes (repeatedly k #(rand-int len))
+        starts (->> (map #(nth xs %) takes)
+                    (map #(hash-map :datum %2 :class %1) (range)))
+        fdist (fn [p] (fn [p1] (distance (p1 :datum) (p :datum))))]
+    (loop [i 0 data (mapv #(hash-map :datum %) xs) start starts restart []]
+      (if (or (== i max-iter) (= start restart))
+        data
+        (let [next-data (mapv #(let [mini (apply min-key (fdist %) start)]
+                                (assoc % :class (:class mini))) data)
+              nstart (->> (group-by :class next-data)
+                          (map #(hash-map :class (key %)
+                                          :datum (ndim-median (map :datum (val %))))))]
+          (do (println i)
+              (println nstart)
+              (recur (inc i) next-data nstart start)))))))
+
+(defn cluster
+  [mini maxi]
+  (time (->> (kmeans (->> (open-file "users-sma-datum")
+                          (map #(let [[a b c d] (:datum %)]
+                                 [(+ c d) a b]))
+                          (filter #(and (every? (fn [x] (< x maxi)) %)
+                                        (some (fn [x] (> x mini)) %)))) 3 50)
+             (spit (fdir (str "class-users-sma-3dim-" mini "-" maxi))))))
+
+(defn create-view
+  [partname]
+  (doseq [i (range 3)]
+    (->> (open (str "class-users-sma-3dim-" partname))
+         (filter #(= i (:class %)))
+         (mapv :datum)
+         (spit (fdir (str "class-users-sma-3dim-" partname "-view-" i))))))
 
 
 
