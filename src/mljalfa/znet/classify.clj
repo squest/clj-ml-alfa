@@ -88,7 +88,7 @@
 
 (defn cluster
   [mini maxi]
-  (time (->> (kmeans (->> (open-file "users-sma-datum")
+  (time (->> (kmeans (->> (open "users-sma-datum")
                           (map #(let [[a b c d] (:datum %)]
                                  [(+ c d) a b]))
                           (filter #(and (every? (fn [x] (< x maxi)) %)
@@ -102,6 +102,34 @@
          (filter #(= i (:class %)))
          (mapv :datum)
          (spit (fdir (str "class-users-sma-3dim-" partname "-view-" i))))))
+
+(defn cluster2
+  [partname]
+  (let [data (map #((comp vec rest) (:datum %))
+                  (open "users-sma-datum"))
+        fclass (fn [x] (let [maxi (max (apply max x) 1)]
+                         (mapv #(int (* 1000 (/ % maxi))) x)))]
+    (->> (kmeans (mapv fclass data) 3 100)
+         (spit (fdir (str "class-users-sma-3dim-" partname))))))
+
+(defn cluster3
+  [partname]
+  (let [data (open "users-sma-datum")
+        fclass (fn [x] (let [[a _] (->> (map-indexed #(vector %1 %2) x)
+                                        (apply max-key second))]
+                         {:datum x :class a}))]
+    (->> (mapv #(fclass (vec (rest (:datum %)))) data)
+         (spit (fdir (str "class-users-sma-3dim-" partname))))))
+
+
+
+
+
+
+
+
+
+
 
 
 
