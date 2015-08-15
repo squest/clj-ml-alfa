@@ -28,7 +28,6 @@
        (remove empty?)
        (pmap json/read-json)))
 
-
 (defn open-log-kopet
   "open log files"
   [fname]
@@ -53,7 +52,7 @@
        (spit (fdir target-file))
        time))
 
-(defn user->member
+(defn adhoc-user->member
   [target-file]
   (let [raw (open-file "set-avi-users")
         mapping (open-file "users-members-map")]
@@ -65,7 +64,7 @@
         (do (spit (fdir target-file) res)
             (take 20 res))))))
 
-(defn convert-kopet-data
+(defn adhoc-convert-kopet-data
   [ftemp]
   (let [ldir (fn [str-date]
                (str "resources/logs/bydate/" ftemp str-date ".edn"))]
@@ -80,20 +79,23 @@
         (println strday)
         (recur (next-day sday))))))
 
-(defn store-user-log-kopet
-  [start-date end-date]
-  (loop [[sday strday] (t/local-date 2014 7 1) res {}]
-    (if (= strday end-date)
-      (do (spit "resources/kopet-data.edn" res)
-          (->> (take 100 res)
-               (into {})))
-      (let [resi (time (loop [[x & xs] (open-log-kopet (str "click-log-" strday)) resi {}]
-                         (if x
-                           (recur xs (->> #(merge-with + % {(first (:content-id x)) 1})
-                                          (update-in resi [(:user-id x)])))
-                           resi)))]
-        (do (println strday)
-            (recur (next-day sday) (merge-with #(merge-with + %1 %2) res resi)))))))
+(defn adhoc-convert-avi-data
+  [ftemp]
+  (let [ldir (fn [str-date]
+               (str "resources/logs/bydate/" ftemp str-date ".edn"))
+        user-map (open-file "user-member-map")]
+    (loop [[sday strday] (next-day (t/local-date 2015 1 30))]
+      (when (not= strday "20150801")
+        (->> (open-log (str "click-log-" strday))
+             (mapv #(hash-map :content-id (if-let [cid (:content-id %)]
+                                            (Integer/parseInt cid) 0)
+                              :timestamp (apply str (take 10 (:timestamp %)))
+                              :memberid (user-map (:user-uuid %))))
+             (spit (ldir strday))
+             time)
+        (println strday)
+        (recur (next-day sday))))))
+
 
 
 
