@@ -127,14 +127,13 @@
   [user-data]
   (let [datum (assoc (:datum user-data) -1 1)
         pompom (apply max-key val datum)]
-    (if (#{43 44 45} (first pompom)) (> (datum 43 0) 10) false)))
+    (if (cg-smas (first pompom)) (> (reduce + (vals datum)) 50) false)))
 
 (defn count-lulus-snmptn
   [pre-source post-source]
   (let [pre-data (open-file pre-source)
         post-data (sequence
-                    (comp (filter #(<= (reduce + (vals (:datum %))) 5))
-                          (map :memberid))
+                    (map :memberid)
                     (open-file post-source))
         kelas12 (->> (sequence
                        (comp (filter kelas12?)
@@ -147,14 +146,13 @@
   [user-data]
   (let [datum (assoc (:datum user-data) -1 1)
         pompom (apply max-key val datum)]
-    (if (#{41 42 43 44 45} (first pompom)) (> (datum 45 0) 10) false)))
+    (if (cg-smas (first pompom)) (> (datum 45 0) 1) false)))
 
 (defn count-lulus-sbmptn
   [pre-source post-source]
   (let [pre-data (open-file pre-source)
         post-data (sequence
-                    (comp (filter #(<= (reduce + (vals (:datum %))) 5))
-                          (map :memberid))
+                    (map :memberid)
                     (open-file post-source))
         bersbmptn (->> (sequence
                          (comp (filter bersbmptn?)
@@ -163,7 +161,47 @@
                        set)]
     [(count bersbmptn) (->> (keep bersbmptn post-data) count)]))
 
+(defn process-logs
+  [source-file target-file]
+  (let [raw (open-file source-file)
+        get-cg (fn [x] (->> (ckey "content" x)
+                            (cc/get-json cdb)
+                            :cg-id))
+        contents (->> (vals raw)
+                      (mapcat keys)
+                      distinct)
+        cc->cg (zipmap contents (pmap get-cg contents))
+        acum-cg (fn [x] (->> (map #(hash-map (cc->cg (key %)) (val %)) x)
+                             (reduce #(merge-with + %1 %2) {})))]
+    (->> (mapv #(hash-map :memberid (key %)
+                          :datum (acum-cg (val %))) raw)
+         (spit (fdir target-file)))))
 
+(defn process-logs-to-parents
+  [source-file target-file]
+  (let [raw (open-file source-file)
+        get-cg (fn [x] (->> (ckey "content-group" x)
+                            (cc/get-json cdb)
+                            :parents
+                            (sort-by :level >)
+                            second :id))
+        cgs (->> (map :datum raw)
+                 (mapcat keys)
+                 distinct)
+        cg->parent (zipmap cgs (pmap get-cg cgs))
+        acum-parent (fn [x] (->> (map #(hash-map (cg->parent (key %)) (val %)) x)
+                                 (reduce #(merge-with + %1 %2) {})))]
+    (->> (mapv #(hash-map :memberid (:memberid %)
+                          :datum (acum-parent (:datum %))) raw)
+         (spit (fdir target-file)))))
+
+(defn top-parent-clustering
+  [source-file]
+  (let [raw (open-file source-file)
+        not-empty-data (let [tmp (remove #(empty? (:datum %)) raw)]
+                         (println tmp) tmp)]
+    (->>
+         ())))
 
 (def name-smas
   '({:canonical-name "pelajaran-sma-kelas-10", :id 41}
