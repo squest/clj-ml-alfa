@@ -1,6 +1,7 @@
 (ns mljalfa.znet.learning.snmptn
   (:require
     [clojure.data.json :as json]
+    [cheshire.core :as js]
     [clojure.string :as cs]
     [clj-time.core :as t]
     [clojure.set :as cset]
@@ -123,43 +124,44 @@
   (doseq [i ["pre-snmptn" "post-snmptn" "pre-pengumuman-sbmptn" "post-pengumuman-sbmptn"]]
     (filtered-cg->level-one i (str i "-filtered") 3)))
 
-(defn kelas12?
-  [user-data]
-  (let [datum (assoc (:datum user-data) -1 1)
-        pompom (apply max-key val datum)]
-    (if (cg-smas (first pompom)) (> (reduce + (vals datum)) 50) false)))
+(comment
+  (defn kelas12?
+    [user-data]
+    (let [datum (assoc (:datum user-data) -1 1)
+          pompom (apply max-key val datum)]
+      (if (cg-smas (first pompom)) (> (reduce + (vals datum)) 50) false)))
 
-(defn count-lulus-snmptn
-  [pre-source post-source]
-  (let [pre-data (open-file pre-source)
-        post-data (sequence
-                    (map :memberid)
-                    (open-file post-source))
-        kelas12 (->> (sequence
-                       (comp (filter kelas12?)
-                             (map :memberid))
-                       pre-data)
-                     set)]
-    [(count kelas12) (->> (keep kelas12 post-data) count)]))
-
-(defn bersbmptn?
-  [user-data]
-  (let [datum (assoc (:datum user-data) -1 1)
-        pompom (apply max-key val datum)]
-    (if (cg-smas (first pompom)) (> (datum 45 0) 1) false)))
-
-(defn count-lulus-sbmptn
-  [pre-source post-source]
-  (let [pre-data (open-file pre-source)
-        post-data (sequence
-                    (map :memberid)
-                    (open-file post-source))
-        bersbmptn (->> (sequence
-                         (comp (filter bersbmptn?)
+  (defn count-lulus-snmptn
+    [pre-source post-source]
+    (let [pre-data (open-file pre-source)
+          post-data (sequence
+                      (map :memberid)
+                      (open-file post-source))
+          kelas12 (->> (sequence
+                         (comp (filter kelas12?)
                                (map :memberid))
                          pre-data)
                        set)]
-    [(count bersbmptn) (->> (keep bersbmptn post-data) count)]))
+      [(count kelas12) (->> (keep kelas12 post-data) count)]))
+
+  (defn bersbmptn?
+    [user-data]
+    (let [datum (assoc (:datum user-data) -1 1)
+          pompom (apply max-key val datum)]
+      (if (cg-smas (first pompom)) (> (datum 45 0) 1) false)))
+
+  (defn count-lulus-sbmptn
+    [pre-source post-source]
+    (let [pre-data (open-file pre-source)
+          post-data (sequence
+                      (map :memberid)
+                      (open-file post-source))
+          bersbmptn (->> (sequence
+                           (comp (filter bersbmptn?)
+                                 (map :memberid))
+                           pre-data)
+                         set)]
+      [(count bersbmptn) (->> (keep bersbmptn post-data) count)])))
 
 (defn process-logs
   [source-file target-file]
@@ -195,13 +197,99 @@
                           :datum (acum-parent (:datum %))) raw)
          (spit (fdir target-file)))))
 
+(defn max-by [f [x & xs]]
+  (if xs
+    (let [tmp (f x)
+          tmprest (max-by f xs)]
+      (if (> tmp (f tmprest)) x tmprest))
+    x))
+
 (defn top-parent-clustering
-  [source-file]
+  [source-file target-file]
   (let [raw (open-file source-file)
         not-empty-data (let [tmp (remove #(empty? (:datum %)) raw)]
-                         (println tmp) tmp)]
-    (->>
-         ())))
+                         (println (count tmp)) tmp)
+        top-parent (fn [x] (max-by val (seq (:datum x))))
+        cg->class {41   :sma10KTSP
+                   42   :sma11KTSP
+                   43   :sma12UN
+                   44   :sma12UN
+                   45   :sma12Alumni
+                   639  :sma10K13
+                   640  :sma11K13
+                   1028 :sma12+UN}]
+    (->> not-empty-data
+         (keep #(let [[k v] (top-parent %)
+                      maxi (reduce + (vals (:datum %)))]
+                 (when (cg-smas k)
+                   (assoc % :class :sma
+                            :subclass (cg->class k)
+                            :maxi v
+                            :total maxi))))
+         (into [])
+         (spit (fdir target-file)))))
+
+(defn cluster-all
+  []
+  (doseq [x ["pre-snmptn-in-parent"
+             "pre-pengumuman-sbmptn-in-parent"]]
+    (println x)
+    (time (top-parent-clustering x (str x "-filtered-sma")))
+    (println (count (open-file (str x "-filtered-sma"))))))
+
+(defn count-class
+  [source-file tar mini maxi]
+  (let [raw2 (open-file source-file)
+        result (->> raw2
+                    (filter #(<= mini (:total %) maxi))
+                    (group-by :subclass)
+                    (mapv #(hash-map :subclass (key %)
+                                     :total (count (val %)))))
+        total (reduce + (map :total result))
+        result2 (mapv #(assoc % :percent (str (int (* 100 (/ (:total %) total))) "%"))
+                      result)]
+    (spit (fdir (str "report-sma-" tar "-" mini "-" maxi)) result2)
+    (println result)))
+
+(defn get-sma-subclass
+  [source-file target-file subclass]
+  (->> (sequence
+         (comp (map #(select-keys % [:subclass :memberid :total]))
+               (filter #(and (<= 50 (:total % 0) 5000)
+                             (= subclass (:subclass %))))
+               (map :memberid))
+         (open-file source-file))
+       set
+       (spit (fdir target-file))))
+
+(defn filter-sma-subclass
+  [source target subclass]
+  (->> (open-file source)
+       (filterv #(= subclass (:subclass %)))
+       (filterv #(<= 100 (:total % 0) 10000))
+       (spit (fdir target))))
+
+(defn count-lulus
+  [source-file filter-file tests]
+  (let [mems (open-file source-file)
+        members (->> mems
+                     (map :memberid)
+                     set)
+        nonton (->> (open-file filter-file)
+                    (filter #(>= (reduce + (vals (:datum %))) 10))
+                    (map :memberid)
+                    (keep members)
+                    set)
+        masih-nonton (count nonton)
+        total (count members)
+        result {:total-member         total
+                :masih-nonton         masih-nonton
+                :mungkin-karena-lulus (- total masih-nonton)}
+        lulus? (fn [x] (if (nonton (:memberid x)) true false))]
+    (spit (fdir (str "lulus-" tests "-report")) result)
+    (->> (mapv #(assoc % :lulus (lulus? %)) mems)
+         (spit (fdir "classified-lulus-sbmptn")))
+    result))
 
 (def name-smas
   '({:canonical-name "pelajaran-sma-kelas-10", :id 41}
