@@ -251,6 +251,11 @@
     (spit (fdir (str "report-sma-" tar "-" mini "-" maxi)) result2)
     (println result)))
 
+(defn save-json
+  [target xs]
+  (spit (str "resources/logs/" target ".json")
+        (js/generate-string xs)))
+
 (defn get-sma-subclass
   [source-file target-file subclass]
   (->> (sequence
@@ -266,7 +271,7 @@
   [source target subclass]
   (->> (open-file source)
        (filterv #(= subclass (:subclass %)))
-       (filterv #(<= 100 (:total % 0) 10000))
+       (filterv #(>= (:total % 0) 500))
        (spit (fdir target))))
 
 (defn count-lulus
@@ -276,7 +281,7 @@
                      (map :memberid)
                      set)
         nonton (->> (open-file filter-file)
-                    (filter #(>= (reduce + (vals (:datum %))) 10))
+                    (filter #(>= (reduce + (vals (:datum %))) 50))
                     (map :memberid)
                     (keep members)
                     set)

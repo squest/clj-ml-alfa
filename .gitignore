@@ -13,3 +13,5 @@ pom.xml.asc
 *.iml
 *.edn
 *.json
+*.csv
+*.nb
