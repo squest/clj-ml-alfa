@@ -51,15 +51,16 @@
                 (zipmap [:2013 :2014 :2015])
                 (ic/to-dataset)))
 
-(def vidset (->> (for [x ["mvid13.csv" "mvid14.csv" "mvid15.csv"]]
-                  (->> (io/read-dataset (fdir x) :header true)
-                       :columns
-                       second
-                       (map #(cs/replace % #"," ""))
-                       (map #(Integer/parseInt %))))
-                (map vec)
-                (zipmap [:2013 :2014 :2015])
-                (ic/to-dataset)))
+(def vidset
+  (->> (for [x ["mvid13.csv" "mvid14.csv" "mvid15.csv"]]
+         (->> (io/read-dataset (fdir x) :header true)
+              :columns
+              second
+              (map #(cs/replace % #"," ""))
+              (map #(Integer/parseInt %))))
+       (map vec)
+       (zipmap [:2013 :2014 :2015])
+       (ic/to-dataset)))
 
 (defn ts-chart
   [year which-data]
