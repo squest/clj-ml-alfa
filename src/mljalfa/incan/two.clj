@@ -80,7 +80,7 @@
                                           :datum [%2 %3 %4]
                                           :sales %5)
                                mo x1 x2 x3 (a sales))}))]
-    ({:edn (save-edn "monthly131415" (vec acum))
+    ({:edn  (save-edn "monthly131415" (vec acum))
       :json (save-json "monthly131415" (vec acum))} file-type)))
 
 (defn distance
@@ -105,7 +105,7 @@
   (let [ctr (count xs)]
     (->> (reduce + (for [j xs] (nth j i)))
          (for [i (range (count (first xs)))])
-         (mapv #(/ % ctr)))))
+         (mapv #(int (/ % ctr))))))
 
 (defn normalise
   [xs n]
@@ -119,19 +119,75 @@
                   (normalise 1000))]
     (map #(assoc % :bahan %2) data bahan)))
 
+(def cluster-data-2
+  (->> (prep-data-for-clustering "monthly131415")
+       (mapv #(assoc % :bahan (let [[a b c] (:datum %)]
+                                [(int (* 1000 (/ (:sales %) b)))
+                                 (int (* 1000 (/ (:sales %) c)))])))))
+
 (def training-data
   (let [fclass (fn [x]
-                 (cond (#{:jun :nov} (:month %))
+                 (cond (#{:feb} (:month x))
                        (assoc x :class :sepi)
-                       (#{:jan :aug} (:month %))
+                       (#{:jan} (:month x))
                        (assoc x :class :rame)
                        :else nil))]
     (keep fclass cluster-data)))
 
+(defn max-by
+  [f xxs]
+  (loop [[x & xs] (seq xxs) cur x maxi (f x)]
+    (if x
+      (let [tmp (f x)]
+        (if (> tmp maxi)
+          (recur xs x tmp)
+          (recur xs cur maxi)))
+      cur)))
+
+(defn min-by
+  [f xxs]
+  (loop [[x & xs] (seq xxs) cur x maxi (f x)]
+    (if x
+      (let [tmp (f x)]
+        (if (< tmp maxi)
+          (recur xs x tmp)
+          (recur xs cur maxi)))
+      cur)))
+
 (defn knn-classify
-  [training-data xs k]
-  (let [ctr (count xs)
-        mps ()]))
+  [tdata x]
+  (let [class (->> (sort-by #(distance (:bahan %) (:bahan x)) tdata)
+                   (mapv :class)
+                   frequencies
+                   (max-by val)
+                   key)]
+    (assoc x :class class)))
+
+(defn k-cluster
+  [data classes]
+  (let [ctr (count classes)
+        fclass (fn [x training]
+                 (->> training
+                      (min-by #(distance (:bahan x) (:bahan %)))
+                      :class))]
+    (loop [datums data
+           mps (mapv #(assoc % :class %2)
+                     (take ctr (shuffle data))
+                     classes)
+           pps (mapv :bahan mps)
+           lmps []
+           i 0]
+      (if (= pps lmps)
+        datums
+        (let [tmp (mapv #(assoc % :class (fclass % mps)) datums)
+              jmp (group-by :class tmp)
+              ajmp (mapv #(hash-map :bahan (ndim-average (mapv :bahan (val %)))
+                                    :class (key %))
+                         jmp)]
+          (println i)
+          (recur tmp ajmp (map :bahan ajmp) pps (inc i)))))))
+
+
 
 
 
