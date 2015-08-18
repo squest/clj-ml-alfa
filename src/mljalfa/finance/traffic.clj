@@ -1,7 +1,10 @@
 (ns mljalfa.finance.traffic
   (:require
     [cheshire.core :as js]
-    [clojure.string :as cs]))
+    [clojure.string :as cs]
+    [incanter.core :as ic]
+    [incanter.charts :as ch]
+    [incanter.io :as io]))
 
 (defn fdir
   [fname]
