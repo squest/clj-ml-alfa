@@ -1,10 +1,6 @@
 # mljalfa
 
-A Clojure library designed to ... well, that part is up to you.
-
-## Usage
-
-FIXME
+Playground for incanter and ml algorithms in clojure
 
 ## License
 
