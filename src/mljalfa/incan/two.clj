@@ -25,6 +25,25 @@
   [fname]
   (->> (str (fdir fname) ".csv") slurp))
 
+(def blog13
+  (->> (open-csv "mb13")
+       cs/split-lines
+       (drop 5)
+       (map #(cs/replace % #"," ""))
+       (map #(cs/split % #"\""))
+       (mapv second)
+       (map #(Integer/parseInt %))
+       (concat (reverse (rest (take 6 (iterate #(int (* 1/2 %)) 7810)))))))
+
+(defn blog-file
+  [fname]
+  (->> (open-csv fname)
+       cs/split-lines
+       (map #(cs/replace % #"," ""))
+       (map #(cs/split % #"\""))
+       (mapv second)
+       (mapv #(Integer/parseInt %))))
+
 (def sales
   {:2013 [35000 42000 59000 67000 64000 37000
           81000 79000 83000 85000 126000 88000]
@@ -32,6 +51,15 @@
           165000 176000 183000 182000 233000 202000]
    :2015 [118332 333290 308232 275578 286000 252000
           502000 429000 393000 297000 604000 193000]})
+
+(defn gen-blog-sales
+  [target]
+  (let [blog13m {:2013 (vec blog13)}
+        lain2x (mapv #(hash-map %1 (blog-file %2))
+                     [:2014 :2015]
+                     ["mb14" "mb15"])]
+    (->> (reduce merge blog13m lain2x)
+         (merge-with interleave sales))))
 
 (defn read-new
   [fname]

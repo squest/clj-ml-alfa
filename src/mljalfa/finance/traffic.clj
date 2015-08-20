@@ -44,10 +44,13 @@
           toms fnames)))
 
 (def sales-data (open-edn "sales"))
+
 (def msales-data (->> sales-data
                       (mapv #(hash-map :year (key %)
                                        :data (vec (rest (butlast (val %))))))))
+
 (def traffic-data (open-edn "traffic"))
+
 (def traffic-sales
   (let [sales (map sales-data [:2013 :2014 :2015])
         traffic (map traffic-data [:2013 :2014 :2015])
