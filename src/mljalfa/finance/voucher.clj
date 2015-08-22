@@ -2,7 +2,13 @@
   (:require
     [clojure.string :as cs]
     [clojure.set :as cset]
-    [cheshire.core :as js]))
+    [cheshire.core :as js]
+    [incanter.core :as i]
+    [incanter.stats :as s]
+    [incanter.io :as io]
+    [incanter.datasets :as ds]
+    [incanter.charts :as c]
+    [incanter.optimize :as o]))
 
 (defn fdir
   [fname]
@@ -144,7 +150,7 @@
 (defn add-duration-session
   [fname]
   (let [base (open-edn fname)
-        result (mapv #(assoc %
+        result (mapv #(assoc (dissoc % :total-duration)
                        :totalduration
                        (int (/ (* (:session %) (:duration %)) 1000)))
                      base)]
@@ -153,7 +159,46 @@
 
 ;; [:session :pageviews :newsession :blogviews :users :seo :direct]
 
+(def incan-complete
+  (i/to-dataset (open-edn "complete")))
 
+(def revenues (i/sel incan-complete :cols :revenue))
+(def seos (i/sel incan-complete :cols :seo))
+(def durations (i/sel incan-complete :cols :totalduration))
+(def pageviews (i/sel incan-complete :cols :pageview))
+(def sessions (i/sel incan-complete :cols :session))
+
+(def f-seo
+  (s/linear-model revenues seos))
+
+(def f-duration
+  (s/linear-model revenues durations))
+
+(def f-pageview
+  (s/linear-model revenues pageviews))
+
+(def f-session
+  (s/linear-model revenues sessions))
+
+(defn charts
+  [which]
+  (let [fmap {"SEO" f-seo
+              "Durations" f-duration
+              "PageViews" f-pageview
+              "Sessions" f-session}
+        dmap {"SEO" seos
+              "Durations" durations
+              "PageViews" pageviews
+              "Sessions" sessions}]
+    (doto (c/scatter-plot (dmap which)
+                          revenues
+                          :title (str which " vs Revenue")
+                          :x-label which
+                          :y-label "Revenue"
+                          :legend true)
+      (c/add-lines (dmap which) (:fitted (fmap which))
+                   :series-label "Linear model")
+      i/view)))
 
 
 
