@@ -116,6 +116,44 @@
                         {:value value :activation 1})))
     (remove empty? (into [] refs))))
 
+(defn process-duration
+  [fname]
+  (let [raw (->> (open-csv fname)
+                 (cs/split-lines)
+                 (drop 7)
+                 (mapv #(cs/split % #","))
+                 (mapv second)
+                 (mapv #(cs/split % #":"))
+                 (mapv rest)
+                 butlast vec)
+        mins (zipmap (map #(if (< % 10) (str "0" %) (str %)) (range 0 61))
+                     (map (partial * 60) (range 0 61)))
+        secs (zipmap (map #(if (< % 10) (str "0" %) (str %)) (range 0 61))
+                     (range 0 61))]
+    (mapv #(let [[a b] %] (+ (mins a) (secs b))) raw)))
+
+(defn normalise-complete
+  []
+  (let [wateva (open-json "complete")
+        base (map #(zipmap (map keyword (keys %)) (vals %)) wateva)
+        durations (open-edn "duration")
+        result (mapv #(assoc % :duration %2) base durations)]
+    (save-json "complete" result)
+    (save-edn "complete" result)))
+
+(defn add-duration-session
+  [fname]
+  (let [base (open-edn fname)
+        result (mapv #(assoc %
+                       :totalduration
+                       (int (/ (* (:session %) (:duration %)) 1000)))
+                     base)]
+    (doseq [f [save-edn save-json]]
+      (f fname result))))
+
+;; [:session :pageviews :newsession :blogviews :users :seo :direct]
+
+
 
 
 
