@@ -106,7 +106,15 @@
          (mapv vector (range 1 37))
          (save-edn target))))
 
-
+(defn member-grouping
+  [fname]
+  (let [raw (open-edn fname)
+        refs (make-array clojure.lang.PersistentArrayMap 360000)]
+    (doseq [{:keys [value memberid]} raw]
+      (aset refs memberid
+            (merge-with + (aget refs memberid)
+                        {:value value :activation 1})))
+    (remove empty? (into [] refs))))
 
 
 
