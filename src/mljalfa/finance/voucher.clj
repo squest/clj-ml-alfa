@@ -126,7 +126,8 @@
   [fname]
   (let [raw (->> (open-csv fname)
                  (cs/split-lines)
-                 (drop 7)
+                 (remove #(< (count %) 4))
+                 (drop-while #(not= "0000" (subs % 0 4)))
                  (mapv #(cs/split % #","))
                  (mapv second)
                  (mapv #(cs/split % #":"))
@@ -199,6 +200,18 @@
       (c/add-lines (dmap which) (:fitted (fmap which))
                    :series-label "Linear model")
       i/view)))
+
+(defn add-seoduration
+  [fname]
+  (let [raw (open-edn fname)
+        data (->> (mapcat process-duration ["seodur14" "seodur15"])
+                  (concat (repeat 12 0)))
+        result (mapv #(assoc %
+                       :seoduration
+                       (int (/ (* %2 (:seo %)) 200)))
+                     raw data)]
+    (doseq [f [save-edn save-json]]
+      (f fname result))))
 
 
 
