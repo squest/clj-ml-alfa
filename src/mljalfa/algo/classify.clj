@@ -13,7 +13,4 @@
   [p1 p2]
   (sqrt (edistance-squared p1 p2)))
 
-(defn centroid
-  "Given a list of vectors of the same dimension, returns the centroid of those data"
-  [xs]
-  )
+

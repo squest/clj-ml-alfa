@@ -98,6 +98,8 @@
          (filter #(#{1 2 3} (:id %)))
          first :id)))
 
+
+
 (defn store-user-cg
   "Store the data in fname into cg form"
   [fname]
