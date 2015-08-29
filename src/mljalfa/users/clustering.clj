@@ -1,5 +1,8 @@
 (ns mljalfa.users.clustering
-  (:require [cheshire.core :as cc]))
+  (:require
+    [cheshire.core :as cc]
+    [clojurewerkz.statistiker.clustering.kmeans :as kmeans]
+    [clojurewerkz.statistiker.clustering.dbscan :as dbscan]))
 
 
 (defn fdir
@@ -34,3 +37,56 @@
                            (reduce merge)))
                ((partial merge-with +) {3 0 2 0 1 0}))
           data)))
+
+(defn normalise
+  [xs]
+  (let [[a b c] (for [i [1 2 3]]
+                  (->> (for [m xs] (get m i))
+                       (apply max)))
+        sd (int (/ c a))
+        smp (int (/ c b))]
+    (mapv #(assoc %
+            1 (* sd (get % 1))
+            2 (* smp (get % 2))) xs)))
+
+(defn dreduce
+  [xs]
+  (mapv #(assoc (dissoc % 1 2 3)
+          :sma (get % 3)
+          :sdsmp (+ (get % 1) (get % 2)))
+        xs))
+
+(def training-data
+  (let [tmp (take 100 (shuffle (open-edn "weighted-members")))
+        mapi {1 :sd 2 :smp 3 :sma}]
+    (mapv #(assoc %
+            :class
+            (->> (apply max-key val %)
+                 key
+                 mapi))
+          tmp)))
+
+(defn distance
+  [p1 p2]
+  (let [sqr #(* % %)]
+    (reduce + (map #(sqr (- %1 %2)) p1 p2))))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
