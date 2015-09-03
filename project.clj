@@ -10,8 +10,10 @@
                  [incanter "1.9.0"]
                  [http-kit "2.1.19"]
                  [couchbase-clj "0.2.0"]
+                 [selmer "0.9.1"]
                  [cheshire "5.5.0"]
                  [clj-time "0.10.0"]
-                 [clojurewerkz/statistiker "0.1.0-SNAPSHOT"]]
+                 [clojurewerkz/statistiker "0.1.0-SNAPSHOT"]
+                 [io.forward/clojure-mail "1.0"]]
   :plugins [[lein-expectations "0.0.8"]
             [lein-gorilla "0.3.4"]])
